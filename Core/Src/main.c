@@ -67,6 +67,11 @@ static void MX_USART1_UART_Init(void);
 volatile uint16_t ADCValor1=0;
 volatile uint16_t ADCValor2=0;
 char buffer[100];
+volatile uint8_t ok1=0;
+volatile uint8_t ok2=0;
+
+uint8_t dato_uart;
+uint8_t ok_UART = 0;
 /* USER CODE END 0 */
 
 /**
@@ -113,7 +118,50 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // 1. Limpiaros el buffer por seguridad
+
+
+	  if (ok1 == 1)
+	  {
+		  ok1 = 0;
+
+
+		  if (ADCValor1 >= 2047)
+		  {
+
+			  int len = sprintf((char*)buffer, "ARRIBA|  POT1: %u \r\n", (unsigned int)ADCValor1);
+			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+		  }
+		  else
+		  {
+			  int len = sprintf((char*)buffer, " ABAJO | POT1: %u \r\n", (unsigned int)ADCValor1);
+			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+		  }
+
+	  }
+
+	  if (ok2 == 1)
+	  	  {
+	  		  ok2 = 0;
+
+
+	  		  if (ADCValor2 >= 2047)
+	  		  {
+
+	  			  int len = sprintf((char*)buffer, "DERECHA|  POT2: %u \r\n", (unsigned int)ADCValor2);
+	  			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+	  		  }
+	  		  else
+	  		  {
+	  			  int len = sprintf((char*)buffer, " IZQUIERDA | POT2: %u \r\n", (unsigned int)ADCValor2);
+	  			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+	  		  }
+
+	  	  }
+
+	      // El resto del tiempo el micro puede estar haciendo otras cosas
+	      // o simplemente esperando sin llenar el serial de basura.
+
+	  /* 1. Limpiaros el buffer por seguridad
 	  memset(buffer, 0, sizeof(buffer));
 
 
@@ -137,9 +185,56 @@ int main(void)
 	  	  else {
 	  	      len += sprintf((char*)&buffer[len], "-> IZQUIERDA \r\n");
 	  	  }
+*/
+
+
+
+
+	  // Si se activa la bandera de "nuevo dato"
+	  if (ok_UART == 1){
+		  // 1. Bajar la bandera inmediatamente
+		  ok_UART = 0;
+
+
+		  if (dato_uart == 'U')
+		  {
+
+			  int len = sprintf((char*)buffer, " ARRIBA  \r\n");
+			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+		  }
+		  else if (dato_uart == 'D')
+		  {
+			  int len = sprintf((char*)buffer, " ABAJO \r\n" );
+			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+		  }
+
+		  else if (dato_uart == 'R')
+		  {
+			  int len = sprintf((char*)buffer, " DERECHA \r\n");
+			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+		  }
+
+		  else if (dato_uart == 'L')
+		  {
+			  int len = sprintf((char*)buffer, " IZQUIERDA \r\n");
+			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+		  }
+
+		  else if (dato_uart == 'A')
+		  {
+			  int len = sprintf((char*)buffer, " A \r\n");
+			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+		  }
+
+		  else if (dato_uart == 'B')
+		  {
+			  int len = sprintf((char*)buffer, " B \r\n");
+			  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+		  }
+	  }
 
 	  // 4. Transmitir
-	  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+	 // HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
 	  HAL_Delay(200);
     /* USER CODE END WHILE */
 
@@ -408,19 +503,31 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
     if (hadc->Instance == ADC1) {
+    	ok1=1;
         ADCValor1 = HAL_ADC_GetValue(&hadc1);
         HAL_ADC_Start_IT(&hadc1); // Reinicia ADC1
     }
 
     if (hadc->Instance == ADC2) {
+    	ok2=1;
         ADCValor2 = HAL_ADC_GetValue(&hadc2);
         HAL_ADC_Start_IT(&hadc2); // Reinicia ADC2
     }
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+/*void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	HAL_UART_Transmit(&huart2, buffer, 1,1000);
 	HAL_UART_Receive_IT(&huart1, buffer, 1);
+
+}*/
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+    if(huart->Instance == USART1){
+    	ok_UART=1;
+
+		// Volver a activar la recepción para la próxima letra
+		// Guardar directamente en &dato_uart
+		HAL_UART_Receive_IT(&huart1, &dato_uart, 1);}
 
 }
 
